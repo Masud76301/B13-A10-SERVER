@@ -4,7 +4,7 @@ const cors = require('cors');
 const app = express()
 const port = 8000
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 dotenv.config();
 app.use(cors());
@@ -13,6 +13,7 @@ app.use(express.json());
 app.get('/', (req, res) => {
     res.send('Hello World!')
 })
+
 
 
 
@@ -44,6 +45,24 @@ async function run() {
             res.send(result);
         })
 
+        app.get('/api/recipes', async (req, res) => {
+            const query = {};
+            if (req.query.userId) {
+                query.userId = req.query.userId;
+            }
+            const result = await recipeCollection.find(query).toArray();
+            res.send(result);
+
+        })
+
+        app.get('/api/recipes/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = {
+                _id: new ObjectId(id)
+            }
+            const result = await recipeCollection.findOne(query);
+            res.send(result);
+        })
 
 
 
