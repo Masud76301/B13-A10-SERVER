@@ -68,7 +68,7 @@ async function run() {
 
 
         // Favorite
-       app.post('/api/favorite', async (req, res) => {
+        app.post('/api/favorite', async (req, res) => {
             const favorite = req.body;
             const newFavorite = {
                 ...favorite,
@@ -77,6 +77,32 @@ async function run() {
             const result = await favoriteCollection.insertOne(newFavorite);
             res.send(result);
         })
+
+        app.get('/api/favorite', async (req, res) => {
+
+            const { userId } = req.query;
+          
+
+            // Find user's favorites
+            const favorites = await favoriteCollection.find({ userId }).toArray();
+            console.log("my fav",favorites);
+            // Convert recipeId strings to ObjectIds
+            const recipeIds = favorites.map(favorite =>
+                new ObjectId(favorite.recipeId)
+            );
+
+            // Fetch recipes
+            const recipes = await recipeCollection.find({
+                _id: {
+                    $in: recipeIds
+                }
+            }).toArray();
+
+            res.send(recipes);
+        });
+
+
+
 
 
         // Connect the client to the server	(optional starting in v4.7)
