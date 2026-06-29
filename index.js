@@ -34,7 +34,9 @@ async function run() {
 
         const database = client.db(process.env.AUTH_DB_NAME);
         const recipeCollection = database.collection("recipes");
+        const favoriteCollection = database.collection("favorite");
 
+        // Recipe
         app.post('/api/recipes', async (req, res) => {
             const recipe = req.body;
             const newRecipe = {
@@ -65,6 +67,16 @@ async function run() {
         })
 
 
+        // Favorite
+       app.post('/api/favorite', async (req, res) => {
+            const favorite = req.body;
+            const newFavorite = {
+                ...favorite,
+                addedAt: new Date()
+            }
+            const result = await favoriteCollection.insertOne(newFavorite);
+            res.send(result);
+        })
 
 
         // Connect the client to the server	(optional starting in v4.7)
