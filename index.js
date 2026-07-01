@@ -35,6 +35,7 @@ async function run() {
         const database = client.db(process.env.AUTH_DB_NAME);
         const recipeCollection = database.collection("recipes");
         const favoriteCollection = database.collection("favorite");
+        const likesCollection = database.collection("likes");
 
         // Recipe
         app.post('/api/recipes', async (req, res) => {
@@ -66,6 +67,137 @@ async function run() {
             res.send(result);
         })
 
+        app.delete('/api/recipes/:id', async (req, res) => {
+            const recipeId = req.params.id;
+            const { userId } = req.body;
+            const result = await recipeCollection.deleteOne({
+                _id: new ObjectId(recipeId),
+                userId: userId,
+            });
+            res.send(result);
+        })
+
+        app.patch("/api/recipes/:id", async (req, res) => {
+            try {
+                const recipeId = req.params.id;
+                const {
+                    _id,
+                    userId,
+                    ...updatedRecipe
+                } = req.body;
+                const result = await recipeCollection.updateOne(
+                    {
+                        _id: new ObjectId(recipeId),
+                        userId,
+                    },
+                    {
+                        $set: updatedRecipe,
+                    }
+                );
+
+                res.send(result);
+
+            } catch (error) {
+                console.error(error);
+                res.status(500).send({
+                    message: error.message,
+                });
+            }
+        });
+
+
+        // Like
+        app.patch("/api/recipes/:id/like", async (req, res) => {
+            const recipeId = req.params.id;
+            const { userId } = req.body;
+
+            // Check if the user already liked the recipe
+            const existingLike = await likesCollection.findOne({
+                recipeId,
+                userId,
+            });
+
+            if (existingLike) {
+                // return res.status(400).send({
+                //     message: "You already liked this recipe.",
+                // });
+
+
+                // Remove the like
+                await likesCollection.deleteOne({
+                    recipeId,
+                    userId,
+                });
+
+                // Decrease like count
+                const result = await recipeCollection.updateOne(
+                    { _id: new ObjectId(recipeId) },
+                    {
+                        $inc: {
+                            likeCount: -1,
+                        },
+                    }
+                );
+
+                return res.send(result);
+
+
+            }
+
+            // Save the like
+            await likesCollection.insertOne({
+                recipeId,
+                userId,
+                createdAt: new Date(),
+            });
+
+            // Increase like count
+            const result = await recipeCollection.updateOne(
+                { _id: new ObjectId(recipeId) },
+                {
+                    $inc: {
+                        likeCount: 1,
+                    },
+                }
+            );
+
+            res.send(result);
+        });
+
+        app.delete("/api/recipes/:id/like", async (req, res) => {
+            const recipeId = req.params.id;
+            const { userId } = req.body;
+
+            const existingLike = await likesCollection.findOne({
+                recipeId,
+                userId,
+            });
+
+            if (!existingLike) {
+                return res.status(404).send({
+                    message: "Like not found.",
+                });
+            }
+
+            // Remove the like
+            await likesCollection.deleteOne({
+                recipeId,
+                userId,
+            });
+
+            // Decrease like count
+            const result = await recipeCollection.updateOne(
+                { _id: new ObjectId(recipeId) },
+                {
+                    $inc: {
+                        likeCount: -1,
+                    },
+                }
+            );
+
+            res.send(result);
+        });
+
 
         // Favorite
         app.post('/api/favorite', async (req, res) => {
@@ -81,11 +213,11 @@ async function run() {
         app.get('/api/favorite', async (req, res) => {
 
             const { userId } = req.query;
-          
+
 
             // Find user's favorites
             const favorites = await favoriteCollection.find({ userId }).toArray();
-            console.log("my fav",favorites);
+
             // Convert recipeId strings to ObjectIds
             const recipeIds = favorites.map(favorite =>
                 new ObjectId(favorite.recipeId)
@@ -101,7 +233,18 @@ async function run() {
             res.send(recipes);
         });
 
+        app.delete('/api/favorite', async (req, res) => {
+            const { userId, recipeId } = req.body;
 
+            const query = {
+                userId,
+                recipeId
+            };
+
+            const result = await favoriteCollection.deleteOne(query);
+
+            res.send(result);
+        });
 
 
 
